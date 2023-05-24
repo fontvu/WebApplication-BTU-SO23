@@ -4,12 +4,16 @@
  *                and retrieveAll
  * @person Gerd Wagner
  */
-import Movie from "./Movie.mjs";
+import {
+  MandatoryValueConstraintViolation,
+  NoConstraintViolation,
+  PatternConstraintViolation,
+  RangeConstraintViolation,
+  ReferentialIntegrityConstraintViolation,
+  UniquenessConstraintViolation
+} from "../../lib/errorTypes.mjs";
 import { cloneObject } from "../../lib/util.mjs";
-import { NoConstraintViolation, MandatoryValueConstraintViolation,
-  RangeConstraintViolation, UniquenessConstraintViolation,
-  ReferentialIntegrityConstraintViolation, PatternConstraintViolation }
-  from "../../lib/errorTypes.mjs";
+import Movie from "./Movie.mjs";
 
 /**
  * The class Person
@@ -18,7 +22,7 @@ import { NoConstraintViolation, MandatoryValueConstraintViolation,
  */
 class Person {
   // using a single record parameter with ES6 function parameter destructuring
-  constructor ({personId, name}) {
+  constructor({ personId, name }) {
     // assign properties by invoking implicit setters
     this.personId = personId;  // number (integer)
     this.name = name;  // string
@@ -28,49 +32,49 @@ class Person {
   get personId() {
     return this._personId;
   }
-  static checkPersonId( id) {
+  static checkPersonId(id) {
     if (!id) {
       return new NoConstraintViolation();  // may be optional as an IdRef
     } else {
-      id = parseInt( id);  // convert to integer
-      if (isNaN( id) || !Number.isInteger( id) || id < 1) {
+      id = parseInt(id);  // convert to integer
+      if (isNaN(id) || !Number.isInteger(id) || id < 1) {
         return new RangeConstraintViolation("The person ID must be a positive integer!");
       } else {
         return new NoConstraintViolation();
       }
     }
   }
-  static checkPersonIdAsId( id) {
+  static checkPersonIdAsId(id) {
     var constraintViolation = Person.checkPersonId(id);
     if ((constraintViolation instanceof NoConstraintViolation)) {
       // convert to integer
       id = parseInt(id);
       if (isNaN(id)) {
         return new MandatoryValueConstraintViolation(
-            "A positive integer value for the person ID is required!");
+          "A positive integer value for the person ID is required!");
       } else if (Person.instances[String(id)]) {  // convert to string if number
         constraintViolation = new UniquenessConstraintViolation(
-            "There is already a person record with this person ID!");
+          "There is already a person record with this person ID!");
       } else {
         constraintViolation = new NoConstraintViolation();
       }
     }
     return constraintViolation;
   }
-  static checkPersonIdAsIdRef( id) {
-    var constraintViolation = Person.checkPersonId( id);
+  static checkPersonIdAsIdRef(id) {
+    var constraintViolation = Person.checkPersonId(id);
     if ((constraintViolation instanceof NoConstraintViolation) && id) {
       if (!Person.instances[String(id)]) {
         constraintViolation = new ReferentialIntegrityConstraintViolation(
-            "There is no person record with this person ID!");
+          "There is no person record with this person ID!");
       }
     }
     return constraintViolation;
   }
-  set personId( id) {
-    const constraintViolation = Person.checkPersonIdAsId( id);
+  set personId(id) {
+    const constraintViolation = Person.checkPersonIdAsId(id);
     if (constraintViolation instanceof NoConstraintViolation) {
-      this._personId = parseInt( id);
+      this._personId = parseInt(id);
     } else {
       throw constraintViolation;
     }
@@ -91,7 +95,7 @@ class Person {
       return new NoConstraintViolation();
     }
   }
-  set name( n) {
+  set name(n) {
     var validationResult = Person.checkName(n);
     if (validationResult instanceof NoConstraintViolation) {
       this._name = n;
@@ -107,7 +111,7 @@ class Person {
   }
   toJSON() {  // is invoked by JSON.stringify
     var rec = {};
-    for (const p of Object.keys( this)) {
+    for (const p of Object.keys(this)) {
       // remove underscore prefix
       if (p.charAt(0) === "_") rec[p.substr(1)] = this[p];
     }
@@ -128,7 +132,7 @@ Person.instances = {};
  */
 Person.add = function (slots) {
   try {
-    const person = new Person( slots);
+    const person = new Person(slots);
     Person.instances[person.personId] = person;
     console.log(`Saved: ${person.name}`);
   } catch (e) {
@@ -138,17 +142,17 @@ Person.add = function (slots) {
 /**
  *  Update an existing person record/object
  */
-Person.update = function ({personId, name}) {
-  const person = Person.instances[String( personId)],
-        objectBeforeUpdate = cloneObject( person);
-  var noConstraintViolated=true, ending="", updatedProperties=[];
+Person.update = function ({ personId, name }) {
+  const person = Person.instances[String(personId)],
+    objectBeforeUpdate = cloneObject(person);
+  var noConstraintViolated = true, ending = "", updatedProperties = [];
   try {
     if (name && person.name !== name) {
       person.name = name;
       updatedProperties.push("name");
     }
   } catch (e) {
-    console.log( `${e.constructor.name}: ${e.message}`);
+    console.log(`${e.constructor.name}: ${e.message}`);
     noConstraintViolated = false;
     // restore object to its state before updating
     Person.instances[personId] = objectBeforeUpdate;
@@ -156,9 +160,9 @@ Person.update = function ({personId, name}) {
   if (noConstraintViolated) {
     if (updatedProperties.length > 0) {
       ending = updatedProperties.length > 1 ? "ies" : "y";
-      console.log( `Propert${ending} ${updatedProperties.toString()} modified for person ${name}`);
+      console.log(`Propert${ending} ${updatedProperties.toString()} modified for person ${name}`);
     } else {
-      console.log( `No property value changed for person ${name}!`);
+      console.log(`No property value changed for person ${name}!`);
     }
   }
 };
@@ -168,21 +172,19 @@ Person.update = function ({personId, name}) {
  *  movies is required for being able to delete the person from the movies' persons.
  */
 Person.destroy = function (personId) {
-  const person = Person.instances[personId];
   // delete all dependent movie records
-  // if the person is an actor in a movie, delete the person from the movie's actors
-  for (const movieID of Object.keys( person.actedInMovies)) {
-    const movie = Movie.instances[movieID];
-    // delete the person from the movie's persons
-    if ((movie.actor && personId in movie.actor)) delete movie.actor[personId];}
-  // if the person is a director in a movie, delete the person from the movie's directors
-  for (const movieID of Object.keys( person.directedMovies)) {
-    const movie = Movie.instances[movieID];
-    // delete the person from the movie's persons
-    if ((movie.director && personId in movie.director)) delete movie.director[personId];}
-  // delete the person object
+  console.log("before delete", Movie.instances);
+  for (const key in Movie.instances) {
+    const movie = Movie.instances[key];
+    console.log(movie.actor);
+    console.log(typeof personId, typeof movie.actor.personId)
+    if (personId === movie.director.personId || movie.actor[personId]) {
+      delete Movie.instances[key];
+    }
+  }
   delete Person.instances[personId];
-  console.log( `Person ${person.name} deleted.`);
+  console.log("after delete", Movie.instances);
+  Movie.syncMoviesWithLocalStorage(Movie.instances);
 };
 /**
  *  Load all person records and convert them to objects
@@ -191,31 +193,31 @@ Person.retrieveAll = function () {
   var persons = {};
   if (!localStorage["persons"]) localStorage["persons"] = "{}";
   try {
-    persons = JSON.parse( localStorage["persons"]);
+    persons = JSON.parse(localStorage["persons"]);
   } catch (e) {
-    console.log( "Error when reading from Local Storage\n" + e);
+    console.log("Error when reading from Local Storage\n" + e);
     persons = {};
   }
-  for (const key of Object.keys( persons)) {
+  for (const key of Object.keys(persons)) {
     try {
       // convert record to (typed) object
-      Person.instances[key] = new Person( persons[key]);
+      Person.instances[key] = new Person(persons[key]);
     } catch (e) {
-      console.log( `${e.constructor.name} while deserializing person ${key}: ${e.message}`);
+      console.log(`${e.constructor.name} while deserializing person ${key}: ${e.message}`);
     }
   }
-  console.log( `${Object.keys( persons).length} person records loaded.`);
+  console.log(`${Object.keys(persons).length} person records loaded.`);
 };
 /**
  *  Save all person objects as records
  */
 Person.saveAll = function () {
-  const nmrOfPersons = Object.keys( Person.instances).length;
+  const nmrOfPersons = Object.keys(Person.instances).length;
   try {
-    localStorage["persons"] = JSON.stringify( Person.instances);
-    console.log( `${nmrOfPersons} person records saved.`);
+    localStorage["persons"] = JSON.stringify(Person.instances);
+    console.log(`${nmrOfPersons} person records saved.`);
   } catch (e) {
-    alert( "Error when writing to Local Storage\n" + e);
+    alert("Error when writing to Local Storage\n" + e);
   }
 };
 

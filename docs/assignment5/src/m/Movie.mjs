@@ -342,12 +342,13 @@ Movie.retrieveAll = function () {
   try {
     if (!localStorage["movies"]) localStorage.setItem("movies", JSON.stringify({}));
     else {
-      movies = JSON.parse(localStorage["movies"]);
+      movies = JSON.parse(localStorage.getItem("movies"));
       console.log(`${Object.keys(movies).length} movie records loaded.`);
     }
   } catch (e) {
     alert("Error when reading from Local Storage\n" + e);
   }
+  console.log(movies);
   for (const movieID of Object.keys(movies)) {
     try {
       Movie.instances[movieID] = new Movie(movies[movieID]);
@@ -370,4 +371,8 @@ Movie.saveAll = function () {
   }
 };
 
+Movie.syncMoviesWithLocalStorage = function (movies) {
+  localStorage.setItem("movies", JSON.stringify(movies))
+  console.log(localStorage.getItem("movies"));
+};
 export default Movie;

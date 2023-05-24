@@ -164,7 +164,7 @@ deleteFormEl["commit"].addEventListener("click", function () {
   const personIdRef = delSelPersonEl.value;
   if (!personIdRef) return;
   if (confirm("Do you really want to delete this person?")) {
-    Person.destroy( personIdRef);
+    Person.destroy( parseInt(personIdRef));
     delSelPersonEl.remove( delSelPersonEl.selectedIndex);
   }
 });
